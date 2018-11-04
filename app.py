@@ -1,4 +1,3 @@
-__author__ = "Jackie Cohen (jczetta)"
 # An application in Flask where you can log in and create user accounts
 
 # Import statements
