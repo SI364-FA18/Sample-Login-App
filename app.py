@@ -16,6 +16,7 @@ from flask_migrate import Migrate, MigrateCommand
 
 # Imports for login management
 from flask_login import LoginManager, login_required, logout_user, login_user, UserMixin, current_user
+# current_user can be used anywhere in the app after login to access the currently logged in user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Configure base directory of app
@@ -28,6 +29,7 @@ app.config['SECRET_KEY'] = 'hardtoguessstring'
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postgresql://localhost/new_data_flask"
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.debug = True
 
 # App addition setups
 manager = Manager(app)
@@ -37,8 +39,8 @@ manager.add_command('db', MigrateCommand)
 
 # Login configurations setup
 login_manager = LoginManager()
-login_manager.session_protection = 'strong'
-login_manager.login_view = 'login'
+login_manager.session_protection = 'strong' # if generated identifier doesn't match the current user's session, they will be forced to log in again to generate a new identifier
+login_manager.login_view = 'login' # display login template when user needs to log in
 login_manager.init_app(app) # set up login manager
 
 ## Set up Shell context so it's easy to use the shell to debug
@@ -61,10 +63,13 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(64), unique=True, index=True)
     password_hash = db.Column(db.String(128))
 
+    # don't let this be readable in case someone gets access to your app
     @property
     def password(self):
         raise AttributeError('password is not a readable attribute')
 
+    # never store plain-text passwords
+    # when we create a new user, we pass password back, and the below code modifies it from plain-text and inserts it into the password_hash column
     @password.setter
     def password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -127,6 +132,7 @@ def login():
         flash('Invalid username or password.')
     return render_template('login.html',form=form)
 
+# note the use of the 2nd decorator @login_required
 @app.route('/logout')
 @login_required
 def logout():
@@ -153,6 +159,7 @@ def secret():
 # Other routes
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    # print(current_user.password)
     return render_template('index.html')
 
 
